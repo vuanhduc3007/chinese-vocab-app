@@ -1,6 +1,8 @@
 # Ứng dụng học từ vựng tiếng Trung (Flutter)
 
-Flashcard + SM-2 spaced repetition, một codebase Flutter chạy trên **Android** và **Windows**.
+Flashcard + SM-2 spaced repetition, một codebase Flutter chạy trên **Web**, **Android** và **Windows**.
+
+🌐 **Dùng thử ngay bản Web (không cần cài đặt):** [https://vuanhduc-chinese-vocab.netlify.app/](https://vuanhduc-chinese-vocab.netlify.app/)
 
 ## 1. Vì sao chỉ có `lib/` và `pubspec.yaml`?
 
@@ -105,10 +107,3 @@ Time & Language > Speech để cài thêm.
   Hán, nghe chọn nghĩa...) mà không cần đụng vào `srs/` hay `repositories/` - chỉ cần thêm
   1 provider + 1 screen mới tái sử dụng `WordRepository` và `SM2Algorithm` hiện có.
 
-## 8. Việc mình chưa thể làm ở đây
-
-Vì sandbox tạo code này không có Flutter SDK / không truy cập được pub.dev, mình **không**
-build hay chạy thử được project. Mã nguồn được viết theo đúng API của các package đã khai
-báo trong `pubspec.yaml` (provider, sqflite, sqflite_common_ffi, flutter_tts, file_picker,
-fl_chart) tại phiên bản đã ghim, nhưng bạn nên chạy `flutter pub get` + `flutter run` và
-báo lại nếu gặp lỗi biên dịch cụ thể nào - mình sẽ sửa ngay.
