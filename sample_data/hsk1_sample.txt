@@ -1,0 +1,17 @@
+# Vi du du lieu HSK1 - dinh dang: ChuHan;Pinyin [Loai tu]: Nghia
+# Dong bat dau bang # se bi bo qua (comment)
+临;lín [đt.]: đến, tới
+你;nǐ [đại.]: bạn
+好;hǎo [tt.]: tốt, đẹp, khỏe
+你好;nǐ hǎo: xin chào
+谢谢;xièxie [đt.]: cảm ơn
+我;wǒ [đại.]: tôi
+他;tā [đại.]: anh ấy, nó
+她;tā [đại.]: cô ấy
+是;shì [đt.]: là
+不;bù [pt.]: không
+爱;ài [đt.]: yêu
+中国;Zhōngguó [dt.]: Trung Quốc
+学生;xuésheng [dt.]: học sinh
+老师;lǎoshī [dt.]: giáo viên
+朋友;péngyou [dt.]: bạn bè

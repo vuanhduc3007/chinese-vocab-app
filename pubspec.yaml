@@ -1,0 +1,45 @@
+name: chinese_vocab_app
+description: >
+  Ung dung hoc tu vung tieng Trung theo kieu Flashcard + SM-2 SRS,
+  chay tren Android va Windows tu mot codebase Flutter duy nhat.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  provider: ^6.1.2
+
+  # Local database (mobile uses native sqflite, desktop uses ffi backend)
+  sqflite: ^2.3.3
+  sqflite_common_ffi: ^2.3.3
+  sqflite_common_ffi_web: ^1.1.2
+  path: ^1.9.0
+  path_provider: ^2.1.4
+
+  # Text-to-speech (uses on-device engine when available)
+  flutter_tts: ^4.1.0
+
+  # Audio playback for TTS fallback on Windows
+  audioplayers: ^6.1.0
+
+  # File picking for Import txt / Import progress
+  file_picker: ^8.1.2
+
+  # Charts for the statistics screen
+  fl_chart: ^0.68.0
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
