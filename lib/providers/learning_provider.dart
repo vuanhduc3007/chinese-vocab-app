@@ -89,16 +89,14 @@ class LearningProvider extends ChangeNotifier {
       nextReview: sm2.nextReview,
     );
 
-    await wordRepository.updateWord(updated);
-    await dailyStatsService.recordReview(isNewWord: isNewWord, remembered: result == ReviewResult.remembered);
+    // Fire and forget network calls so the UI moves to the next card instantly
+    wordRepository.updateWord(updated);
+    dailyStatsService.recordReview(isNewWord: isNewWord, remembered: result == ReviewResult.remembered);
 
     if (result == ReviewResult.forgot) {
-      final poolSize = await wordRepository.countLearned(
-        // approx pool size just informs how aggressively to shrink the
-        // requeue gap for very small decks - a rough count is enough.
-        [updated.deckId],
-      );
-      queueService.scheduleForgotRequeue(updated, approxPoolSize: poolSize);
+      wordRepository.countLearned([updated.deckId]).then((poolSize) {
+        queueService.scheduleForgotRequeue(updated, approxPoolSize: poolSize);
+      }).catchError((_) {});
     }
 
     await loadNextWord();
