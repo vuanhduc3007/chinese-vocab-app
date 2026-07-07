@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "863495640912",
+    "project_id": "vuanhduc-chinese-vocab",
+    "storage_bucket": "vuanhduc-chinese-vocab.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:863495640912:android:ef621d2005189526523e55",
+        "android_client_info": {
+          "package_name": "com.example.chinese_vocab_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD6LRgO-XFwMYcYETGZ52VIDvS-iD6tXy4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

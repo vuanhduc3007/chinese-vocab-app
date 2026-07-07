@@ -1,18 +1,12 @@
-/// Model representing a single vocabulary entry (1 the/1 flashcard).
-///
-/// Contains both the "content" fields (parsed from the .txt source file)
-/// and the "learning state" fields required by the SM-2 spaced-repetition
-/// algorithm. Keeping both in one model keeps the persistence layer simple,
-/// while the SRS logic itself lives entirely in `srs/sm2_algorithm.dart`.
 class Word {
-  final int? id;
+  final String? id;
 
   // ----- Content fields (parsed from txt) -----
   final String hanzi;
   final String pinyin;
   final String meaning;
   final String? partOfSpeech;
-  final int deckId;
+  final String deckId;
 
   // ----- SM-2 / learning state fields -----
   int correctCount;
@@ -52,10 +46,8 @@ class Word {
     this.isFavorite = false,
   }) : createdDate = createdDate ?? DateTime.now();
 
-  /// Whether this word has never been reviewed yet (brand new).
   bool get isNew => reviewCount == 0;
 
-  /// Whether this word is due for review right now, according to SM-2.
   bool isDue(DateTime now) {
     if (isNew) return false;
     if (nextReview == null) return true;
@@ -63,12 +55,12 @@ class Word {
   }
 
   Word copyWith({
-    int? id,
+    String? id,
     String? hanzi,
     String? pinyin,
     String? meaning,
     String? partOfSpeech,
-    int? deckId,
+    String? deckId,
     int? correctCount,
     int? wrongCount,
     int? reviewCount,
@@ -106,7 +98,6 @@ class Word {
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
       'hanzi': hanzi,
       'pinyin': pinyin,
       'meaning': meaning,
@@ -123,18 +114,18 @@ class Word {
       'nextReview': nextReview?.toIso8601String(),
       'lastShown': lastShown?.toIso8601String(),
       'createdDate': createdDate.toIso8601String(),
-      'isFavorite': isFavorite ? 1 : 0,
+      'isFavorite': isFavorite,
     };
   }
 
-  factory Word.fromMap(Map<String, dynamic> map) {
+  factory Word.fromMap(Map<String, dynamic> map, [String? docId]) {
     return Word(
-      id: map['id'] as int?,
+      id: docId ?? map['id'] as String?,
       hanzi: map['hanzi'] as String,
       pinyin: map['pinyin'] as String,
       meaning: map['meaning'] as String,
       partOfSpeech: map['partOfSpeech'] as String?,
-      deckId: map['deckId'] as int,
+      deckId: map['deckId'] as String,
       correctCount: map['correctCount'] as int? ?? 0,
       wrongCount: map['wrongCount'] as int? ?? 0,
       reviewCount: map['reviewCount'] as int? ?? 0,
@@ -154,7 +145,7 @@ class Word {
       createdDate: map['createdDate'] != null
           ? DateTime.parse(map['createdDate'] as String)
           : DateTime.now(),
-      isFavorite: (map['isFavorite'] as int? ?? 0) == 1,
+      isFavorite: map['isFavorite'] as bool? ?? false,
     );
   }
 }

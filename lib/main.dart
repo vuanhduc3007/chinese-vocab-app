@@ -1,26 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 import 'repositories/word_repository.dart';
 import 'repositories/deck_repository.dart';
 import 'services/learning_queue_service.dart';
 import 'services/tts_service.dart';
 import 'services/daily_stats_service.dart';
+import 'providers/auth_provider.dart' as app_auth;
 import 'providers/deck_provider.dart';
 import 'providers/learning_provider.dart';
 import 'providers/stats_provider.dart';
 import 'providers/settings_provider.dart';
 import 'ui/screens/home_screen.dart';
+import 'ui/screens/auth_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const ChineseVocabApp());
 }
 
-/// Root widget. Wires up the dependency graph (repositories -> services
-/// -> providers) once at the top, then hands everything down via
-/// `provider`. Nothing below this widget constructs its own repository
-/// or service instances for shared state, which keeps a single source
-/// of truth for the database connection and session-scoped queue state.
 class ChineseVocabApp extends StatelessWidget {
   const ChineseVocabApp({super.key});
 
@@ -34,6 +37,7 @@ class ChineseVocabApp extends StatelessWidget {
 
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => app_auth.AuthProvider()),
         Provider<WordRepository>.value(value: wordRepository),
         Provider<DeckRepository>.value(value: deckRepository),
         ChangeNotifierProvider(
@@ -57,7 +61,7 @@ class ChineseVocabApp extends StatelessWidget {
       child: Consumer<SettingsProvider>(
         builder: (context, settings, _) {
           return MaterialApp(
-            title: 'Học từ vựng tiếng Trung',
+            title: 'Học từ vựng tiếng Trung Cloud',
             debugShowCheckedModeBanner: false,
             themeMode: settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
             theme: ThemeData(
@@ -70,7 +74,20 @@ class ChineseVocabApp extends StatelessWidget {
               colorSchemeSeed: Colors.teal,
               brightness: Brightness.dark,
             ),
-            home: const HomeScreen(),
+            home: Consumer<app_auth.AuthProvider>(
+              builder: (context, auth, _) {
+                if (auth.isAuthenticated) {
+                  // Lên lịch load dữ liệu khi user login thành công
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (context.mounted) {
+                      context.read<DeckProvider>().load();
+                    }
+                  });
+                  return const HomeScreen();
+                }
+                return const AuthScreen();
+              },
+            ),
           );
         },
       ),

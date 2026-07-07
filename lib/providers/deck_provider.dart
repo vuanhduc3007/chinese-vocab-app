@@ -15,7 +15,7 @@ class DeckProvider extends ChangeNotifier {
   DeckProvider({required this.deckRepository, required this.wordRepository});
 
   List<Deck> decks = [];
-  Set<int> activeDeckIds = {};
+  Set<String> activeDeckIds = {};
   bool isLoading = false;
   String? lastImportMessage;
 
@@ -33,7 +33,7 @@ class DeckProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void toggleDeckActive(int deckId, bool active) {
+  void toggleDeckActive(String deckId, bool active) {
     if (active) {
       activeDeckIds.add(deckId);
     } else {
@@ -77,7 +77,7 @@ class DeckProvider extends ChangeNotifier {
     await load();
   }
 
-  Future<void> deleteDeck(int deckId) async {
+  Future<void> deleteDeck(String deckId) async {
     await deckRepository.deleteDeck(deckId);
     activeDeckIds.remove(deckId);
     await load();

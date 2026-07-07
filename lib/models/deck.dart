@@ -1,45 +1,34 @@
-/// A Deck groups vocabulary words together (e.g. HSK1, HSK2, "Tu cua toi").
-/// Each deck has its own independent learning progress because SRS state
-/// lives on the [Word] rows, which are each tagged with a `deckId`.
 class Deck {
-  final int? id;
+  final String? id;
   final String name;
   final DateTime createdDate;
-  final String? sourceFileName; // last txt file imported into this deck
+
+  /// Optional: Remember the original filename if imported from a text file.
+  final String? sourceFileName;
 
   Deck({
     this.id,
     required this.name,
-    DateTime? createdDate,
     this.sourceFileName,
+    DateTime? createdDate,
   }) : createdDate = createdDate ?? DateTime.now();
-
-  Deck copyWith({int? id, String? name, String? sourceFileName}) {
-    return Deck(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      createdDate: createdDate,
-      sourceFileName: sourceFileName ?? this.sourceFileName,
-    );
-  }
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
       'name': name,
       'createdDate': createdDate.toIso8601String(),
       'sourceFileName': sourceFileName,
     };
   }
 
-  factory Deck.fromMap(Map<String, dynamic> map) {
+  factory Deck.fromMap(Map<String, dynamic> map, [String? docId]) {
     return Deck(
-      id: map['id'] as int?,
+      id: docId ?? map['id'] as String?,
       name: map['name'] as String,
+      sourceFileName: map['sourceFileName'] as String?,
       createdDate: map['createdDate'] != null
           ? DateTime.parse(map['createdDate'] as String)
-          : DateTime.now(),
-      sourceFileName: map['sourceFileName'] as String?,
+          : null,
     );
   }
 }

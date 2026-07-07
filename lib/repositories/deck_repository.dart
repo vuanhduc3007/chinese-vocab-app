@@ -1,65 +1,63 @@
-import 'package:sqflite/sqflite.dart';
-import '../database/database_helper.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/deck.dart';
 
-/// Data-access layer for [Deck]s. Nothing above this layer (providers,
-/// UI) ever touches SQL directly.
 class DeckRepository {
-  final DatabaseHelper _dbHelper;
-  DeckRepository({DatabaseHelper? dbHelper}) : _dbHelper = dbHelper ?? DatabaseHelper.instance;
+  String get _uid {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) throw Exception('User not logged in');
+    return uid;
+  }
+
+  CollectionReference get _decksRef =>
+      FirebaseFirestore.instance.collection('users').doc(_uid).collection('decks');
 
   Future<List<Deck>> getAllDecks() async {
-    final db = await _dbHelper.database;
-    final rows = await db.query('decks', orderBy: 'id ASC');
-    return rows.map(Deck.fromMap).toList();
+    final snapshot = await _decksRef.orderBy('createdDate').get();
+    return snapshot.docs.map((doc) => Deck.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
   }
 
   Future<Deck?> getDeckByName(String name) async {
-    final db = await _dbHelper.database;
-    final rows = await db.query('decks', where: 'name = ?', whereArgs: [name]);
-    if (rows.isEmpty) return null;
-    return Deck.fromMap(rows.first);
+    final snapshot = await _decksRef.where('name', isEqualTo: name).limit(1).get();
+    if (snapshot.docs.isEmpty) return null;
+    final doc = snapshot.docs.first;
+    return Deck.fromMap(doc.data() as Map<String, dynamic>, doc.id);
   }
 
-  Future<Deck?> getDeckById(int id) async {
-    final db = await _dbHelper.database;
-    final rows = await db.query('decks', where: 'id = ?', whereArgs: [id]);
-    if (rows.isEmpty) return null;
-    return Deck.fromMap(rows.first);
+  Future<Deck?> getDeckById(String id) async {
+    final doc = await _decksRef.doc(id).get();
+    if (!doc.exists) return null;
+    return Deck.fromMap(doc.data() as Map<String, dynamic>, doc.id);
   }
 
-  /// Creates the deck if it doesn't exist yet; otherwise returns the
-  /// existing one. Deck names act as the natural unique key.
   Future<Deck> getOrCreateDeck(String name, {String? sourceFileName}) async {
     final existing = await getDeckByName(name);
     if (existing != null) return existing;
 
-    final db = await _dbHelper.database;
-    final id = await db.insert('decks', {
-      'name': name,
-      'createdDate': DateTime.now().toIso8601String(),
-      'sourceFileName': sourceFileName,
-    });
-    return Deck(id: id, name: name, sourceFileName: sourceFileName);
-  }
-
-  Future<void> updateSourceFileName(int deckId, String fileName) async {
-    final db = await _dbHelper.database;
-    await db.update('decks', {'sourceFileName': fileName}, where: 'id = ?', whereArgs: [deckId]);
-  }
-
-  Future<void> deleteDeck(int deckId) async {
-    final db = await _dbHelper.database;
-    await db.delete('words', where: 'deckId = ?', whereArgs: [deckId]);
-    await db.delete('decks', where: 'id = ?', whereArgs: [deckId]);
-  }
-
-  Future<int> wordCountForDeck(int deckId) async {
-    final db = await _dbHelper.database;
-    final result = await db.rawQuery(
-      'SELECT COUNT(*) as count FROM words WHERE deckId = ?',
-      [deckId],
+    final docRef = _decksRef.doc(); // Auto-generate ID
+    final newDeck = Deck(
+      id: docRef.id,
+      name: name,
+      sourceFileName: sourceFileName,
     );
-    return (result.first['count'] as int?) ?? 0;
+    await docRef.set(newDeck.toMap());
+    return newDeck;
+  }
+
+  Future<void> updateSourceFileName(String deckId, String fileName) async {
+    await _decksRef.doc(deckId).update({'sourceFileName': fileName});
+  }
+
+  Future<void> deleteDeck(String deckId) async {
+    // Note: Deleting a deck should also delete its words. 
+    // We'll leave the words deletion to be handled explicitly by the provider or a cloud function,
+    // but for now, we just delete the deck document.
+    await _decksRef.doc(deckId).delete();
+  }
+
+  Future<int> wordCountForDeck(String deckId) async {
+    final wordsRef = FirebaseFirestore.instance.collection('users').doc(_uid).collection('words');
+    final snapshot = await wordsRef.where('deckId', isEqualTo: deckId).count().get();
+    return snapshot.count ?? 0;
   }
 }

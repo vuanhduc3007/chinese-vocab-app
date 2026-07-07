@@ -20,7 +20,7 @@ class LearningScreen extends StatefulWidget {
 
 class _LearningScreenState extends State<LearningScreen> {
   final FocusNode _focusNode = FocusNode();
-  Set<int> _lastActiveDeckIds = {};
+  Set<String> _lastActiveDeckIds = {};
 
   @override
   void didChangeDependencies() {
@@ -39,7 +39,7 @@ class _LearningScreenState extends State<LearningScreen> {
     }
   }
 
-  bool _setEquals(Set<int> a, Set<int> b) => a.length == b.length && a.containsAll(b);
+  bool _setEquals(Set<String> a, Set<String> b) => a.length == b.length && a.containsAll(b);
 
   @override
   void dispose() {

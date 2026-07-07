@@ -1,80 +1,68 @@
-import 'package:sqflite/sqflite.dart';
-import '../database/database_helper.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/date_utils.dart';
 
-/// Tracks per-day counters (words learned for the first time, reviews
-/// done, words forgotten) which power the Study Streak, Daily Goal and
-/// the "words learned per day" chart on the stats screen.
 class DailyStatsService {
-  final DatabaseHelper _dbHelper;
-  DailyStatsService({DatabaseHelper? dbHelper}) : _dbHelper = dbHelper ?? DatabaseHelper.instance;
-
-  Future<void> _ensureRow(DatabaseExecutor db, String dateKey) async {
-    final rows = await db.query('daily_stats', where: 'date = ?', whereArgs: [dateKey]);
-    if (rows.isEmpty) {
-      await db.insert('daily_stats', {
-        'date': dateKey,
-        'learnedCount': 0,
-        'reviewedCount': 0,
-        'forgotCount': 0,
-      });
-    }
+  String get _uid {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) throw Exception('User not logged in');
+    return uid;
   }
 
+  CollectionReference get _statsRef =>
+      FirebaseFirestore.instance.collection('users').doc(_uid).collection('daily_stats');
+
   Future<void> recordReview({required bool isNewWord, required bool remembered}) async {
-    final db = await _dbHelper.database;
     final dateKey = AppDateUtils.dayKey(DateTime.now());
-    await db.transaction((txn) async {
-      await _ensureRow(txn, dateKey);
-      await txn.rawUpdate(
-        'UPDATE daily_stats SET reviewedCount = reviewedCount + 1, '
-        'learnedCount = learnedCount + ?, '
-        'forgotCount = forgotCount + ? '
-        'WHERE date = ?',
-        [isNewWord ? 1 : 0, remembered ? 0 : 1, dateKey],
-      );
-    });
+    final docRef = _statsRef.doc(dateKey);
+
+    await docRef.set({
+      'date': dateKey,
+      'reviewedCount': FieldValue.increment(1),
+      'learnedCount': FieldValue.increment(isNewWord ? 1 : 0),
+      'forgotCount': FieldValue.increment(remembered ? 0 : 1),
+    }, SetOptions(merge: true));
   }
 
   Future<Map<String, dynamic>> getToday() async {
-    final db = await _dbHelper.database;
     final dateKey = AppDateUtils.dayKey(DateTime.now());
-    final rows = await db.query('daily_stats', where: 'date = ?', whereArgs: [dateKey]);
-    if (rows.isEmpty) {
+    final doc = await _statsRef.doc(dateKey).get();
+    if (!doc.exists) {
       return {'date': dateKey, 'learnedCount': 0, 'reviewedCount': 0, 'forgotCount': 0};
     }
-    return rows.first;
+    return doc.data() as Map<String, dynamic>;
   }
 
-  /// Last [days] days of stats, oldest first - handy for a bar chart.
   Future<List<Map<String, dynamic>>> getLastNDays(int days) async {
-    final db = await _dbHelper.database;
     final now = DateTime.now();
     final keys = List.generate(days, (i) => AppDateUtils.dayKey(now.subtract(Duration(days: days - 1 - i))));
-    final placeholders = List.filled(keys.length, '?').join(',');
-    final rows = await db.query('daily_stats', where: 'date IN ($placeholders)', whereArgs: keys);
-    final byDate = {for (final r in rows) r['date'] as String: r};
+    
+    // Firestore whereIn supports up to 30 items. If days > 30, we'd need to chunk.
+    // Assuming days is usually 7.
+    final snapshot = await _statsRef.where('date', whereIn: keys).get();
+    
+    final byDate = {
+      for (final doc in snapshot.docs) 
+        doc.id: doc.data() as Map<String, dynamic>
+    };
+    
     return keys
         .map((k) => byDate[k] ?? {'date': k, 'learnedCount': 0, 'reviewedCount': 0, 'forgotCount': 0})
         .toList();
   }
 
-  /// Number of consecutive days (ending today or yesterday) that have at
-  /// least one review recorded.
   Future<int> getStudyStreak() async {
-    final db = await _dbHelper.database;
-    final rows = await db.query('daily_stats', orderBy: 'date DESC');
-    if (rows.isEmpty) return 0;
+    final snapshot = await _statsRef.orderBy('date', descending: true).get();
+    if (snapshot.docs.isEmpty) return 0;
 
-    final datesWithActivity = rows
+    final datesWithActivity = snapshot.docs
+        .map((d) => d.data() as Map<String, dynamic>)
         .where((r) => ((r['reviewedCount'] as int?) ?? 0) > 0)
         .map((r) => r['date'] as String)
         .toSet();
 
     var streak = 0;
     var cursor = DateTime.now();
-    // Allow the streak to still count if today has no activity yet but
-    // yesterday does (user just hasn't studied today yet).
     if (!datesWithActivity.contains(AppDateUtils.dayKey(cursor))) {
       cursor = cursor.subtract(const Duration(days: 1));
     }

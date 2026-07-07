@@ -28,7 +28,7 @@ class StatsProvider extends ChangeNotifier {
 
   bool isLoading = false;
 
-  Future<void> load(List<int> deckIds, {int dailyGoalValue = 20}) async {
+  Future<void> load(List<String> deckIds, {int dailyGoalValue = 20}) async {
     isLoading = true;
     notifyListeners();
     dailyGoal = dailyGoalValue;

@@ -28,15 +28,15 @@ class LearningQueueService {
   final WordRepository wordRepository;
   final Random _random;
 
-  List<int> _activeDeckIds = [];
+  List<String> _activeDeckIds = [];
   final List<_ForgotEntry> _forgotQueue = [];
-  final List<int> _recentHistory = []; // word ids, most-recent last
+  final List<String> _recentHistory = []; // word ids, most-recent last
   int _questionCounter = 0;
 
   LearningQueueService({required this.wordRepository, Random? random})
       : _random = random ?? Random();
 
-  void setActiveDecks(List<int> deckIds) {
+  void setActiveDecks(List<String> deckIds) {
     if (deckIds.toSet().difference(_activeDeckIds.toSet()).isNotEmpty ||
         _activeDeckIds.toSet().difference(deckIds.toSet()).isNotEmpty) {
       // Deck selection changed - session-local ordering state no longer

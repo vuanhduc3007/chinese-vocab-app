@@ -32,7 +32,7 @@ class LearningProvider extends ChangeNotifier {
   bool isLoadingNext = false;
   int wordsShownThisRun = 0;
 
-  Future<void> setActiveDecks(List<int> deckIds) async {
+  Future<void> setActiveDecks(List<String> deckIds) async {
     queueService.setActiveDecks(deckIds);
     await loadNextWord();
   }

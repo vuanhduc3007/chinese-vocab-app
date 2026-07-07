@@ -1,12 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/deck_provider.dart';
-import '../../repositories/word_repository.dart';
-import '../../repositories/deck_repository.dart';
-import '../../services/backup_service.dart';
-import 'package:file_picker/file_picker.dart';
+import '../../providers/auth_provider.dart' as app_auth;
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -16,15 +12,12 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  late final BackupService _backupService = BackupService(
-    wordRepository: WordRepository(),
-    deckRepository: DeckRepository(),
-  );
   bool _busy = false;
 
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
+    final auth = context.watch<app_auth.AuthProvider>();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Cài đặt')),
@@ -64,21 +57,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.file_download_outlined),
-            title: const Text('Export Progress'),
-            subtitle: const Text('Lưu tiến trình học ra file JSON'),
-            onTap: _busy ? null : _exportProgress,
+            leading: const Icon(Icons.cloud_sync, color: Colors.teal),
+            title: const Text('Đồng bộ dữ liệu'),
+            subtitle: Text('Tài khoản: ${auth.user?.email ?? "Không rõ"}'),
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Dữ liệu đang được tự động đồng bộ 2 chiều!')),
+              );
+            },
           ),
           ListTile(
-            leading: const Icon(Icons.file_upload_outlined),
-            title: const Text('Import Progress'),
-            subtitle: const Text('Nạp lại tiến trình học từ file JSON'),
-            onTap: _busy ? null : _importProgress,
-          ),
-          ListTile(
-            leading: const Icon(Icons.backup_outlined),
-            title: const Text('Backup database ngay'),
-            onTap: _busy ? null : _backupNow,
+            leading: const Icon(Icons.logout),
+            title: const Text('Đăng xuất'),
+            onTap: () async {
+              await auth.signOut();
+            },
           ),
           const Divider(),
           ListTile(
@@ -89,55 +82,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
-  }
-
-  Future<void> _exportProgress() async {
-    setState(() => _busy = true);
-    try {
-      final path = await _backupService.exportProgress();
-      _snack('Đã export ra: $path');
-    } catch (e) {
-      _snack('Lỗi export: $e');
-    } finally {
-      setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _importProgress() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['json'],
-      withData: true,
-    );
-    if (result == null || result.files.isEmpty) return;
-    final file = result.files.single;
-    if (file.bytes == null) return;
-
-    setState(() => _busy = true);
-    try {
-      final jsonString = utf8.decode(file.bytes!);
-      final count = await _backupService.importProgressFromJson(jsonString);
-      if (mounted) {
-        await context.read<DeckProvider>().load();
-      }
-      _snack('Đã import/cập nhật $count từ.');
-    } catch (e) {
-      _snack('Lỗi import: $e');
-    } finally {
-      setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _backupNow() async {
-    setState(() => _busy = true);
-    try {
-      final path = await _backupService.backupDatabaseFile();
-      _snack('Đã backup: $path');
-    } catch (e) {
-      _snack('Lỗi backup: $e');
-    } finally {
-      setState(() => _busy = false);
-    }
   }
 
   Future<void> _resetAll() async {
@@ -153,8 +97,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
     if (confirm == true) {
-      await context.read<DeckProvider>().resetAllProgress();
-      _snack('Đã reset toàn bộ tiến trình học.');
+      setState(() => _busy = true);
+      try {
+        await context.read<DeckProvider>().resetAllProgress();
+        _snack('Đã reset toàn bộ tiến trình học trên Cloud.');
+      } finally {
+        setState(() => _busy = false);
+      }
     }
   }
 

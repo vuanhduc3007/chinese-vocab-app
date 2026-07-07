@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'tts_platform_stub.dart' if (dart.library.io) 'tts_platform_native.dart' as platform;
+import 'tts_web_player_stub.dart' if (dart.library.html) 'tts_web_player_html.dart' as web_player;
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:audioplayers/audioplayers.dart';
 
@@ -16,7 +17,9 @@ class TtsService {
     if (_initialized) return;
 
     try {
-      if (!kIsWeb && platform.isWindows) {
+      if (kIsWeb) {
+        _useWebTts = true;
+      } else if (platform.isWindows) {
         await _initWindows();
       } else {
         await _initMobile();
@@ -103,12 +106,16 @@ class TtsService {
 
   Future<void> _speakViaWeb(String hanzi) async {
     try {
-      await _audioPlayer.stop();
       final encoded = Uri.encodeComponent(hanzi);
-      final url = 'https://translate.google.com/translate_tts'
-          '?ie=UTF-8&tl=zh-CN&client=tw-ob&q=$encoded';
+      final url = 'https://translate.googleapis.com/translate_tts'
+          '?client=gtx&ie=UTF-8&tl=zh-CN&q=$encoded';
       debugPrint('[TTS] Web TTS URL: $url');
-      await _audioPlayer.play(UrlSource(url));
+      if (kIsWeb) {
+        await web_player.playGoogleTtsWeb(url);
+      } else {
+        await _audioPlayer.stop();
+        await _audioPlayer.play(UrlSource(url));
+      }
     } catch (e) {
       debugPrint('[TTS] Web TTS error: $e');
     }
