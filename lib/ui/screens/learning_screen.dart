@@ -101,31 +101,40 @@ class _LearningScreenState extends State<LearningScreen> {
               padding: const EdgeInsets.all(24.0),
               child: word == null
                   ? _buildEmptyState(context, learningProvider)
-                  : Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        FlashcardWidget(
-                          word: word,
-                          face: learningProvider.face,
-                          onSpeak: learningProvider.speakCurrentWord,
-                          onToggleFavorite: learningProvider.toggleFavoriteCurrentWord,
-                        ),
-                        const SizedBox(height: 32),
-                        if (learningProvider.face == CardFace.question)
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: learningProvider.revealAnswer,
-                              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 18)),
-                              child: const Text('Hiện đáp án', style: TextStyle(fontSize: 16)),
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        return SingleChildScrollView(
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                FlashcardWidget(
+                                  word: word,
+                                  face: learningProvider.face,
+                                  onSpeak: learningProvider.speakCurrentWord,
+                                  onToggleFavorite: learningProvider.toggleFavoriteCurrentWord,
+                                ),
+                                const SizedBox(height: 32),
+                                if (learningProvider.face == CardFace.question)
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton(
+                                      onPressed: learningProvider.revealAnswer,
+                                      style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 18)),
+                                      child: const Text('Hiện đáp án', style: TextStyle(fontSize: 16)),
+                                    ),
+                                  )
+                                else
+                                  AnswerButtons(
+                                    onRemembered: learningProvider.answerRemembered,
+                                    onForgot: learningProvider.answerForgot,
+                                  ),
+                              ],
                             ),
-                          )
-                        else
-                          AnswerButtons(
-                            onRemembered: learningProvider.answerRemembered,
-                            onForgot: learningProvider.answerForgot,
                           ),
-                      ],
+                        );
+                      },
                     ),
             ),
           ),
