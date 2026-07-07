@@ -111,12 +111,17 @@ class _StatsScreenState extends State<StatsScreen> {
     if (days.isEmpty) return const SizedBox();
 
     final bars = <BarChartGroupData>[];
+    double maxY = 0;
     for (var i = 0; i < days.length; i++) {
       final count = (days[i]['reviewedCount'] as int?) ?? 0;
+      if (count > maxY) maxY = count.toDouble();
       bars.add(
         BarChartGroupData(x: i, barRods: [BarChartRodData(toY: count.toDouble(), width: 10)]),
       );
     }
+
+    double yInterval = (maxY / 5).ceil().toDouble();
+    if (yInterval < 1) yInterval = 1;
 
     return BarChart(
       BarChartData(
@@ -139,7 +144,13 @@ class _StatsScreenState extends State<StatsScreen> {
               },
             ),
           ),
-          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: true)),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true, 
+              interval: yInterval,
+              reservedSize: 32,
+            ),
+          ),
           topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),

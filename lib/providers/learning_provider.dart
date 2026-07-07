@@ -91,12 +91,11 @@ class LearningProvider extends ChangeNotifier {
 
     // Fire and forget network calls so the UI moves to the next card instantly
     wordRepository.updateWord(updated);
+    queueService.updateCachedWord(updated);
     dailyStatsService.recordReview(isNewWord: isNewWord, remembered: result == ReviewResult.remembered);
 
     if (result == ReviewResult.forgot) {
-      wordRepository.countLearned([updated.deckId]).then((poolSize) {
-        queueService.scheduleForgotRequeue(updated, approxPoolSize: poolSize);
-      }).catchError((_) {});
+      queueService.scheduleForgotRequeue(updated);
     }
 
     await loadNextWord();

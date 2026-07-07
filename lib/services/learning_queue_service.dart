@@ -32,6 +32,7 @@ class LearningQueueService {
   final List<_ForgotEntry> _forgotQueue = [];
   final List<String> _recentHistory = []; // word ids, most-recent last
   int _questionCounter = 0;
+  List<Word>? _cachedAllWords;
 
   LearningQueueService({required this.wordRepository, Random? random})
       : _random = random ?? Random();
@@ -44,13 +45,27 @@ class LearningQueueService {
       _forgotQueue.clear();
       _recentHistory.clear();
       _questionCounter = 0;
+      _cachedAllWords = null;
     }
     _activeDeckIds = deckIds;
   }
 
+  void updateCachedWord(Word word) {
+    if (_cachedAllWords == null) return;
+    final idx = _cachedAllWords!.indexWhere((w) => w.id == word.id);
+    if (idx != -1) {
+      _cachedAllWords![idx] = word;
+    }
+  }
+
   /// Call after the user pressed "Quên" for [word]. Schedules it to
   /// reappear after a randomised 8-12 (auto-shrunk) question gap.
-  void scheduleForgotRequeue(Word word, {required int approxPoolSize}) {
+  void scheduleForgotRequeue(Word word) {
+    int approxPoolSize = 50;
+    if (_cachedAllWords != null) {
+      approxPoolSize = _cachedAllWords!.where((w) => w.deckId == word.deckId && w.reviewCount > 0).length;
+    }
+    
     final maxGap = approxPoolSize < AppConstants.forgotRequeueMin
         ? max(1, approxPoolSize)
         : AppConstants.forgotRequeueMax;
@@ -65,8 +80,23 @@ class LearningQueueService {
     if (_activeDeckIds.isEmpty) return null;
     final now = DateTime.now();
 
-    final due = await wordRepository.getDueWords(_activeDeckIds, now);
-    final freshWords = await wordRepository.getNewWords(_activeDeckIds);
+    if (_cachedAllWords == null) {
+      _cachedAllWords = await wordRepository.getAllWords(deckIds: _activeDeckIds);
+    }
+
+    final due = _cachedAllWords!.where((w) => 
+      w.reviewCount > 0 && 
+      (w.nextReview == null || w.nextReview!.isBefore(now) || w.nextReview!.isAtSameMomentAs(now))
+    ).toList();
+    due.sort((a, b) {
+      if (a.nextReview == null && b.nextReview == null) return 0;
+      if (a.nextReview == null) return -1;
+      if (b.nextReview == null) return 1;
+      return a.nextReview!.compareTo(b.nextReview!);
+    });
+
+    final freshWords = _cachedAllWords!.where((w) => w.reviewCount == 0).toList();
+    freshWords.sort((a, b) => a.createdDate.compareTo(b.createdDate));
 
     final readyForgot = _forgotQueue.where((e) => e.revealAtCount <= _questionCounter).toList();
 
@@ -116,7 +146,7 @@ class LearningQueueService {
   }
 
   Future<Word?> _pickRandomReviewWord() async {
-    final learned = await wordRepository.getLearnedWords(_activeDeckIds);
+    final learned = _cachedAllWords!.where((w) => w.reviewCount > 0).toList();
     if (learned.isEmpty) return null;
     if (learned.length == 1) return learned.first;
 
