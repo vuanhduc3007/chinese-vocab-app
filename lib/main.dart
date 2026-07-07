@@ -29,34 +29,12 @@ class ChineseVocabApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final wordRepository = WordRepository();
-    final deckRepository = DeckRepository();
-    final dailyStatsService = DailyStatsService();
     final ttsService = TtsService();
-    final queueService = LearningQueueService(wordRepository: wordRepository);
 
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => app_auth.AuthProvider()),
-        Provider<WordRepository>.value(value: wordRepository),
-        Provider<DeckRepository>.value(value: deckRepository),
-        ChangeNotifierProvider(
-          create: (_) => SettingsProvider()..load(),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => DeckProvider(deckRepository: deckRepository, wordRepository: wordRepository),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => LearningProvider(
-            wordRepository: wordRepository,
-            queueService: queueService,
-            ttsService: ttsService,
-            dailyStatsService: dailyStatsService,
-          ),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => StatsProvider(wordRepository: wordRepository, dailyStatsService: dailyStatsService),
-        ),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()..load()),
       ],
       child: Consumer<SettingsProvider>(
         builder: (context, settings, _) {
@@ -77,13 +55,7 @@ class ChineseVocabApp extends StatelessWidget {
             home: Consumer<app_auth.AuthProvider>(
               builder: (context, auth, _) {
                 if (auth.isAuthenticated) {
-                  // Lên lịch load dữ liệu khi user login thành công
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (context.mounted) {
-                      context.read<DeckProvider>().load();
-                    }
-                  });
-                  return const HomeScreen();
+                  return _UserAppSession(ttsService: ttsService);
                 }
                 return const AuthScreen();
               },
@@ -91,6 +63,44 @@ class ChineseVocabApp extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class _UserAppSession extends StatelessWidget {
+  final TtsService ttsService;
+  const _UserAppSession({required this.ttsService});
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        Provider(create: (_) => WordRepository()),
+        Provider(create: (_) => DeckRepository()),
+        Provider(create: (_) => DailyStatsService()),
+        Provider(create: (ctx) => LearningQueueService(wordRepository: ctx.read<WordRepository>())),
+        ChangeNotifierProvider(
+          create: (ctx) => DeckProvider(
+            deckRepository: ctx.read<DeckRepository>(),
+            wordRepository: ctx.read<WordRepository>(),
+          )..load(),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) => LearningProvider(
+            wordRepository: ctx.read<WordRepository>(),
+            queueService: ctx.read<LearningQueueService>(),
+            ttsService: ttsService,
+            dailyStatsService: ctx.read<DailyStatsService>(),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) => StatsProvider(
+            wordRepository: ctx.read<WordRepository>(),
+            dailyStatsService: ctx.read<DailyStatsService>(),
+          ),
+        ),
+      ],
+      child: const HomeScreen(),
     );
   }
 }
