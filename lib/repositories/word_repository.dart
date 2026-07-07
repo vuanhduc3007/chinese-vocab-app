@@ -25,27 +25,37 @@ class WordRepository {
   }
 
   Future<int> importEntries(List<ParsedEntry> entries, String deckId) async {
-    int addedCount = 0;
+    if (entries.isEmpty) return 0;
     
-    // Firestore batch limit is 500. We'll do chunks of 400 to be safe.
-    // Also, we need to check existing words. Firestore doesn't have a simple 
-    // "insert if not exists" across multiple fields without reading first.
-    // For large imports, this could be slow, but it's acceptable for now.
-    for (final entry in entries) {
-      final existing = await _getByHanziPinyinDeck(entry.hanzi, entry.pinyin, deckId);
-      if (existing != null) continue;
+    // 1. Fetch all existing words for this deck to check for duplicates quickly
+    final snapshot = await _wordsRef.where('deckId', isEqualTo: deckId).get();
+    final existingWords = snapshot.docs.map((doc) => Word.fromMap(doc.data() as Map<String, dynamic>, doc.id));
+    final existingSet = existingWords.map((w) => '${w.hanzi}|${w.pinyin}').toSet();
 
-      final docRef = _wordsRef.doc();
-      final word = Word(
-        id: docRef.id,
-        hanzi: entry.hanzi,
-        pinyin: entry.pinyin,
-        meaning: entry.meaning,
-        partOfSpeech: entry.partOfSpeech,
-        deckId: deckId,
-      );
-      await docRef.set(word.toMap());
-      addedCount++;
+    // 2. Filter new entries
+    final newEntries = entries.where((e) => !existingSet.contains('${e.hanzi}|${e.pinyin}')).toList();
+    if (newEntries.isEmpty) return 0;
+
+    int addedCount = 0;
+    final db = FirebaseFirestore.instance;
+
+    // 3. Batch insert (Firestore limit is 500 per batch)
+    for (var chunk in _chunkList(newEntries, 450)) {
+      final batch = db.batch();
+      for (final entry in chunk) {
+        final docRef = _wordsRef.doc();
+        final word = Word(
+          id: docRef.id,
+          hanzi: entry.hanzi,
+          pinyin: entry.pinyin,
+          meaning: entry.meaning,
+          partOfSpeech: entry.partOfSpeech,
+          deckId: deckId,
+        );
+        batch.set(docRef, word.toMap());
+        addedCount++;
+      }
+      await batch.commit();
     }
 
     return addedCount;

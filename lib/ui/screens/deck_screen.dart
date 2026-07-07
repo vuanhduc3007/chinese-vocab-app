@@ -52,6 +52,57 @@ class _DeckScreenState extends State<DeckScreen> {
     }
   }
 
+  Future<void> _pasteAndImport(BuildContext context) async {
+    final controller = TextEditingController();
+    final content = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Nhập từ vựng (Copy/Paste)'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: TextField(
+            controller: controller,
+            maxLines: 15,
+            decoration: const InputDecoration(
+              hintText: 'Dán nội dung vào đây...\nVí dụ:\n我\twǒ\ttôi\t[Đại từ]\n...',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          TextButton(onPressed: () => Navigator.pop(ctx, controller.text), child: const Text('Tiếp tục')),
+        ],
+      ),
+    );
+
+    if (content == null || content.trim().isEmpty) return;
+
+    final deckName = await _askDeckName(context);
+    if (deckName == null || deckName.trim().isEmpty) return;
+
+    setState(() => _busy = true);
+    try {
+      final deckProvider = context.read<DeckProvider>();
+      final added = await deckProvider.importTxtIntoDeck(
+        deckName: deckName.trim(),
+        fileContent: content,
+        sourceFileName: 'Nhập thủ công (Copy/Paste)',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(deckProvider.lastImportMessage ?? 'Đã thêm $added từ mới.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi khi import: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<String?> _askDeckName(BuildContext context) async {
     final controller = TextEditingController();
     final decks = context.read<DeckProvider>().decks;
@@ -99,6 +150,11 @@ class _DeckScreenState extends State<DeckScreen> {
       appBar: AppBar(
         title: const Text('Bộ từ (Decks)'),
         actions: [
+          IconButton(
+            onPressed: _busy ? null : () => _pasteAndImport(context),
+            icon: const Icon(Icons.paste),
+            tooltip: 'Nhập chữ (Copy/Paste)',
+          ),
           IconButton(
             onPressed: _busy ? null : () => _pickAndImport(context),
             icon: const Icon(Icons.upload_file),
