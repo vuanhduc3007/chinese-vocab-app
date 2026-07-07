@@ -91,16 +91,12 @@ class WordRepository {
 
   Future<List<Word>> getDueWords(List<String> deckIds, DateTime now) async {
     if (deckIds.isEmpty) return [];
-    List<Word> results = [];
-    for (var chunk in _chunkList(deckIds, 10)) {
-      final snapshot = await _wordsRef
-          .where('deckId', whereIn: chunk)
-          .where('reviewCount', isGreaterThan: 0)
-          .get();
-      
-      final chunkWords = snapshot.docs.map((doc) => Word.fromMap(doc.data() as Map<String, dynamic>, doc.id));
-      results.addAll(chunkWords.where((w) => w.nextReview == null || w.nextReview!.isBefore(now) || w.nextReview!.isAtSameMomentAs(now)));
-    }
+    final allWords = await getAllWords(deckIds: deckIds);
+    final results = allWords.where((w) => 
+      w.reviewCount > 0 && 
+      (w.nextReview == null || w.nextReview!.isBefore(now) || w.nextReview!.isAtSameMomentAs(now))
+    ).toList();
+    
     results.sort((a, b) {
       if (a.nextReview == null && b.nextReview == null) return 0;
       if (a.nextReview == null) return -1;
@@ -112,15 +108,9 @@ class WordRepository {
 
   Future<List<Word>> getNewWords(List<String> deckIds, {int? limit}) async {
     if (deckIds.isEmpty) return [];
-    List<Word> results = [];
-    for (var chunk in _chunkList(deckIds, 10)) {
-      final snapshot = await _wordsRef
-          .where('deckId', whereIn: chunk)
-          .where('reviewCount', isEqualTo: 0)
-          .get();
-      results.addAll(snapshot.docs.map((doc) => Word.fromMap(doc.data() as Map<String, dynamic>, doc.id)));
-    }
-    // Cannot easily order and limit across multiple whereIn queries, so we sort in memory
+    final allWords = await getAllWords(deckIds: deckIds);
+    final results = allWords.where((w) => w.reviewCount == 0).toList();
+    
     results.sort((a, b) => a.createdDate.compareTo(b.createdDate));
     if (limit != null && results.length > limit) {
       return results.sublist(0, limit);
@@ -130,15 +120,8 @@ class WordRepository {
 
   Future<List<Word>> getLearnedWords(List<String> deckIds) async {
     if (deckIds.isEmpty) return [];
-    List<Word> results = [];
-    for (var chunk in _chunkList(deckIds, 10)) {
-      final snapshot = await _wordsRef
-          .where('deckId', whereIn: chunk)
-          .where('reviewCount', isGreaterThan: 0)
-          .get();
-      results.addAll(snapshot.docs.map((doc) => Word.fromMap(doc.data() as Map<String, dynamic>, doc.id)));
-    }
-    return results;
+    final allWords = await getAllWords(deckIds: deckIds);
+    return allWords.where((w) => w.reviewCount > 0).toList();
   }
 
   Future<List<Word>> searchWords(String query, {List<String>? deckIds}) async {
@@ -154,19 +137,8 @@ class WordRepository {
   }
 
   Future<List<Word>> getFavorites({List<String>? deckIds}) async {
-    if (deckIds == null || deckIds.isEmpty) {
-      final snapshot = await _wordsRef.where('isFavorite', isEqualTo: true).get();
-      return snapshot.docs.map((doc) => Word.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
-    }
-    List<Word> results = [];
-    for (var chunk in _chunkList(deckIds, 10)) {
-      final snapshot = await _wordsRef
-          .where('deckId', whereIn: chunk)
-          .where('isFavorite', isEqualTo: true)
-          .get();
-      results.addAll(snapshot.docs.map((doc) => Word.fromMap(doc.data() as Map<String, dynamic>, doc.id)));
-    }
-    return results;
+    final allWords = await getAllWords(deckIds: deckIds);
+    return allWords.where((w) => w.isFavorite).toList();
   }
 
   Future<void> toggleFavorite(String wordId, bool value) async {
@@ -187,30 +159,14 @@ class WordRepository {
 
   Future<int> countLearned(List<String> deckIds) async {
     if (deckIds.isEmpty) return 0;
-    int total = 0;
-    for (var chunk in _chunkList(deckIds, 10)) {
-      final snapshot = await _wordsRef
-          .where('deckId', whereIn: chunk)
-          .where('reviewCount', isGreaterThan: 0)
-          .count().get();
-      total += snapshot.count ?? 0;
-    }
-    return total;
+    final allWords = await getAllWords(deckIds: deckIds);
+    return allWords.where((w) => w.reviewCount > 0).length;
   }
 
   Future<int> countMastered(List<String> deckIds) async {
     if (deckIds.isEmpty) return 0;
-    int total = 0;
-    for (var chunk in _chunkList(deckIds, 10)) {
-      final snapshot = await _wordsRef
-          .where('deckId', whereIn: chunk)
-          .where('correctStreak', isGreaterThanOrEqualTo: 3)
-          .get(); // count() with multiple inequalities is limited
-      
-      final words = snapshot.docs.map((doc) => Word.fromMap(doc.data() as Map<String, dynamic>, doc.id));
-      total += words.where((w) => w.interval >= 21).length;
-    }
-    return total;
+    final allWords = await getAllWords(deckIds: deckIds);
+    return allWords.where((w) => w.correctStreak >= 3 && w.interval >= 21).length;
   }
 
   Future<int> countDueOn(List<String> deckIds, DateTime day) async {
@@ -218,18 +174,11 @@ class WordRepository {
     final startOfDay = DateTime(day.year, day.month, day.day);
     final endOfDay = DateTime(day.year, day.month, day.day, 23, 59, 59);
     
-    int total = 0;
-    for (var chunk in _chunkList(deckIds, 10)) {
-      final snapshot = await _wordsRef
-          .where('deckId', whereIn: chunk)
-          .where('nextReview', isGreaterThanOrEqualTo: startOfDay.toIso8601String())
-          .where('nextReview', isLessThanOrEqualTo: endOfDay.toIso8601String())
-          .get();
-      
-      final words = snapshot.docs.map((doc) => Word.fromMap(doc.data() as Map<String, dynamic>, doc.id));
-      total += words.where((w) => w.reviewCount > 0).length;
-    }
-    return total;
+    final allWords = await getAllWords(deckIds: deckIds);
+    return allWords.where((w) {
+      if (w.reviewCount == 0 || w.nextReview == null) return false;
+      return !w.nextReview!.isBefore(startOfDay) && !w.nextReview!.isAfter(endOfDay);
+    }).length;
   }
 
   Future<int> sumReviewCount(List<String> deckIds) async {
