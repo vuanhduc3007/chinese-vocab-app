@@ -94,7 +94,45 @@ class _AuthScreenState extends State<AuthScreen> {
                         ? 'Chưa có tài khoản? Đăng ký ngay'
                         : 'Đã có tài khoản? Đăng nhập',
                   ),
-                )
+                ),
+                const SizedBox(height: 24),
+                const Row(
+                  children: [
+                    Expanded(child: Divider()),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Text('HOẶC', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    ),
+                    Expanded(child: Divider()),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: _isLoading 
+                    ? const SizedBox()
+                    : OutlinedButton.icon(
+                        onPressed: () async {
+                          setState(() => _isLoading = true);
+                          try {
+                            await context.read<app_auth.AuthProvider>().signInWithGoogle();
+                          } on FirebaseAuthException catch (e) {
+                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? 'Lỗi')));
+                          } catch (e) {
+                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+                          } finally {
+                            if (mounted) setState(() => _isLoading = false);
+                          }
+                        },
+                        icon: const Icon(Icons.account_circle, color: Colors.red),
+                        label: const Text('Tiếp tục với Google', style: TextStyle(color: Colors.black87)),
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          side: const BorderSide(color: Colors.grey),
+                        ),
+                      ),
+                ),
               ],
             ),
           ),

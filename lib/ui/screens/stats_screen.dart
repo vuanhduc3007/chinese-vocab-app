@@ -128,10 +128,13 @@ class _StatsScreenState extends State<StatsScreen> {
               getTitlesWidget: (value, meta) {
                 final i = value.toInt();
                 if (i < 0 || i >= days.length) return const SizedBox();
+                // Bỏ qua hiển thị nhãn của những ngày lẻ (tránh đè nhau trên điện thoại)
+                if (i % 2 != 0) return const SizedBox();
+                
                 final key = days[i]['date'] as String;
                 return Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Text(key.substring(5), style: const TextStyle(fontSize: 9)),
+                  child: Text(key.substring(5), style: const TextStyle(fontSize: 10)),
                 );
               },
             ),

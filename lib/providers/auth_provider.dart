@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -26,5 +27,14 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> signOut() async {
     await _auth.signOut();
+  }
+
+  Future<void> signInWithGoogle() async {
+    if (kIsWeb) {
+      final googleProvider = GoogleAuthProvider();
+      await _auth.signInWithPopup(googleProvider);
+    } else {
+      throw UnimplementedError('Google Sign-In hiện tại chỉ hỗ trợ trên bản Web (Netlify).');
+    }
   }
 }
