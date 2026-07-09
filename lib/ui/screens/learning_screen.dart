@@ -6,6 +6,7 @@ import '../../providers/deck_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../widgets/flashcard_widget.dart';
 import '../widgets/typing_flashcard_widget.dart';
+import '../widgets/drawing_flashcard_widget.dart';
 import '../widgets/answer_buttons.dart';
 
 /// The single, infinite learning screen. There is intentionally no
@@ -170,6 +171,19 @@ class _LearningScreenState extends State<LearningScreen> {
                     ],
                   ),
                 ),
+                PopupMenuItem(
+                  value: LearningMode.drawing,
+                  child: Row(
+                    children: [
+                      Icon(Icons.draw,
+                          color: learningProvider.learningMode == LearningMode.drawing
+                              ? Theme.of(context).colorScheme.primary
+                              : null),
+                      const SizedBox(width: 12),
+                      const Text('Vẽ chữ'),
+                    ],
+                  ),
+                ),
               ],
             ),
             IconButton(
@@ -222,6 +236,16 @@ class _LearningScreenState extends State<LearningScreen> {
           onToggleFavorite: provider.toggleFavoriteCurrentWord,
           onSubmit: (input) => provider.submitWritingAnswer(input),
         );
+      case LearningMode.drawing:
+        return DrawingFlashcardWidget(
+          word: word,
+          face: provider.face,
+          userInput: provider.lastUserInput,
+          isCorrect: provider.lastInputCorrect,
+          onSpeak: provider.speakCurrentWord,
+          onToggleFavorite: provider.toggleFavoriteCurrentWord,
+          onSubmit: (input) => provider.submitWritingAnswer(input),
+        );
       case LearningMode.recognition:
       default:
         return FlashcardWidget(
@@ -234,8 +258,8 @@ class _LearningScreenState extends State<LearningScreen> {
   }
 
   Widget _buildActions(LearningProvider provider) {
-    if (provider.learningMode == LearningMode.typing && provider.face == CardFace.question) {
-      // In typing mode, buttons are inside the flashcard widget
+    if ((provider.learningMode == LearningMode.typing || provider.learningMode == LearningMode.drawing) && provider.face == CardFace.question) {
+      // In typing/drawing mode, buttons are inside the flashcard widget
       return const SizedBox.shrink();
     }
 

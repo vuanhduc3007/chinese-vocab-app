@@ -93,15 +93,6 @@ class _TypingFlashcardWidgetState extends State<TypingFlashcardWidget> {
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 12),
-
-          // Pinyin hint
-          Text(
-            widget.word.pinyin,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              color: theme.colorScheme.primary,
-            ),
-          ),
 
           // Part of speech
           if (widget.word.partOfSpeech != null && widget.word.partOfSpeech!.isNotEmpty) ...[
