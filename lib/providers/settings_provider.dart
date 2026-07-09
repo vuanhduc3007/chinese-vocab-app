@@ -7,11 +7,13 @@ import '../services/simple_prefs.dart';
 class SettingsProvider extends ChangeNotifier {
   bool isDarkMode = true;
   int dailyGoal = 20;
+  String learningMode = 'recognition'; // 'recognition', 'typing', 'drawing'
 
   Future<void> load() async {
     final prefs = await SimplePrefs.instance();
     isDarkMode = prefs.getBool('isDarkMode') ?? true;
     dailyGoal = prefs.getInt('dailyGoal') ?? 20;
+    learningMode = prefs.getString('learningMode') ?? 'recognition';
     notifyListeners();
   }
 
@@ -27,5 +29,12 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = await SimplePrefs.instance();
     await prefs.setInt('dailyGoal', value);
+  }
+
+  Future<void> setLearningMode(String value) async {
+    learningMode = value;
+    notifyListeners();
+    final prefs = await SimplePrefs.instance();
+    await prefs.setString('learningMode', value);
   }
 }

@@ -7,6 +7,7 @@ import '../services/daily_stats_service.dart';
 import '../srs/sm2_algorithm.dart';
 
 enum CardFace { question, answer }
+enum LearningMode { recognition, typing, drawing }
 
 /// Drives the single "infinite learning" flashcard screen. Everything
 /// UI-facing (current word, whether the answer is revealed, button
@@ -32,6 +33,39 @@ class LearningProvider extends ChangeNotifier {
   bool isLoadingNext = false;
   int wordsShownThisRun = 0;
 
+  LearningMode learningMode = LearningMode.recognition;
+  String? lastUserInput;
+  bool? lastInputCorrect;
+
+  void setLearningMode(LearningMode mode) {
+    if (learningMode == mode) return;
+    learningMode = mode;
+    // Reset card state when switching modes
+    face = CardFace.question;
+    lastUserInput = null;
+    lastInputCorrect = null;
+    notifyListeners();
+  }
+
+  /// Normalize a string for comparison: strip whitespace, punctuation,
+  /// ellipsis marks so that "因为...所以..." matches "因为所以".
+  static String _normalize(String s) {
+    return s
+        .replaceAll(RegExp(r'[\s\.\.\.\u2026，。、！？!?,\.\s]'), '')
+        .replaceAll('...', '')
+        .trim();
+  }
+
+  /// Called by typing/drawing mode when user submits their answer.
+  void submitWritingAnswer(String userInput) {
+    if (currentWord == null || face == CardFace.answer) return;
+    lastUserInput = userInput;
+    lastInputCorrect = _normalize(userInput) == _normalize(currentWord!.hanzi);
+    face = CardFace.answer;
+    notifyListeners();
+    speakCurrentWord();
+  }
+
   Future<void> setActiveDecks(List<String> deckIds) async {
     queueService.setActiveDecks(deckIds);
     await loadNextWord();
@@ -44,6 +78,8 @@ class LearningProvider extends ChangeNotifier {
     final word = await queueService.getNextWord();
     currentWord = word;
     face = CardFace.question;
+    lastUserInput = null;
+    lastInputCorrect = null;
     if (word != null) {
       currentWord = word.copyWith(lastShown: DateTime.now());
       wordsShownThisRun++;
@@ -110,3 +146,4 @@ class LearningProvider extends ChangeNotifier {
     notifyListeners();
   }
 }
+
