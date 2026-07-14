@@ -2,7 +2,13 @@ import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../providers/deck_provider.dart';
+import '../../providers/settings_provider.dart';
+import '../../services/ai_import_service.dart';
+import '../widgets/api_key_dialog.dart';
+import '../widgets/ai_preview_dialog.dart';
+import '../../models/word.dart';
 
 /// Manage decks: create, delete, pick which ones are active for the
 /// Learning screen, and import a .txt vocabulary file into any of them.
@@ -46,6 +52,80 @@ class _DeckScreenState extends State<DeckScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi khi import: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _importFromAi(BuildContext context, ImageSource source) async {
+    final settings = context.read<SettingsProvider>();
+    String? apiKey = settings.geminiApiKey;
+    if (apiKey == null || apiKey.trim().isEmpty) {
+      apiKey = await showDialog<String>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => const ApiKeyDialog(),
+      );
+      if (apiKey == null || apiKey.trim().isEmpty) return;
+      await settings.setGeminiApiKey(apiKey.trim());
+    }
+
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: source);
+    if (pickedFile == null) return;
+    
+    final bytes = await pickedFile.readAsBytes();
+
+    final deckName = await _askDeckName(context);
+    if (deckName == null || deckName.trim().isEmpty) return;
+
+    setState(() => _busy = true);
+    try {
+      final aiService = AiImportService(apiKey: apiKey.trim());
+      final extractedWords = await aiService.extractVocabFromImage(bytes, '__temp__');
+      
+      if (extractedWords.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Không tìm thấy từ vựng nào trong ảnh.')));
+        }
+        return;
+      }
+
+      if (mounted) {
+        setState(() => _busy = false);
+        final selectedWords = await showDialog<List<Word>>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AiPreviewDialog(words: extractedWords),
+        );
+
+        if (selectedWords == null || selectedWords.isEmpty) return;
+        
+        setState(() => _busy = true);
+        final deckProvider = context.read<DeckProvider>();
+        
+        final buffer = StringBuffer();
+        for (var w in selectedWords) {
+          final pos = (w.partOfSpeech != null && w.partOfSpeech!.isNotEmpty) ? '[${w.partOfSpeech}]' : '';
+          buffer.writeln('${w.hanzi}\t${w.pinyin}\t${w.meaning}\t$pos');
+        }
+        
+        final added = await deckProvider.importTxtIntoDeck(
+          deckName: deckName.trim(),
+          fileContent: buffer.toString(),
+          sourceFileName: 'Quét ảnh (AI)',
+        );
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Đã thêm $added từ mới từ ảnh.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi AI: $e')));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -150,6 +230,16 @@ class _DeckScreenState extends State<DeckScreen> {
       appBar: AppBar(
         title: const Text('Bộ từ (Decks)'),
         actions: [
+          IconButton(
+            onPressed: _busy ? null : () => _importFromAi(context, ImageSource.camera),
+            icon: const Icon(Icons.camera_alt),
+            tooltip: 'Chụp ảnh quét từ vựng (AI)',
+          ),
+          IconButton(
+            onPressed: _busy ? null : () => _importFromAi(context, ImageSource.gallery),
+            icon: const Icon(Icons.image),
+            tooltip: 'Chọn ảnh quét từ vựng (AI)',
+          ),
           IconButton(
             onPressed: _busy ? null : () => _pasteAndImport(context),
             icon: const Icon(Icons.paste),

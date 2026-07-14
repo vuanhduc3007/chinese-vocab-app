@@ -31,6 +31,11 @@ dependencies:
 
   # File picking for Import txt / Import progress
   file_picker: ^8.1.2
+  image_picker: ^1.1.2
+
+  # AI
+  google_generative_ai: ^0.4.3
+  url_launcher: ^6.3.0
 
   # Charts for the statistics screen
   fl_chart: ^0.68.0

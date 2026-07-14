@@ -8,12 +8,14 @@ class SettingsProvider extends ChangeNotifier {
   bool isDarkMode = true;
   int dailyGoal = 20;
   String learningMode = 'recognition'; // 'recognition', 'typing', 'drawing'
+  String? geminiApiKey;
 
   Future<void> load() async {
     final prefs = await SimplePrefs.instance();
     isDarkMode = prefs.getBool('isDarkMode') ?? true;
     dailyGoal = prefs.getInt('dailyGoal') ?? 20;
     learningMode = prefs.getString('learningMode') ?? 'recognition';
+    geminiApiKey = prefs.getString('geminiApiKey');
     notifyListeners();
   }
 
@@ -36,5 +38,17 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = await SimplePrefs.instance();
     await prefs.setString('learningMode', value);
+  }
+
+  Future<void> setGeminiApiKey(String? value) async {
+    geminiApiKey = value;
+    notifyListeners();
+    final prefs = await SimplePrefs.instance();
+    if (value == null || value.isEmpty) {
+      // Assuming SimplePrefs doesn't have remove, we just save empty
+      await prefs.setString('geminiApiKey', '');
+    } else {
+      await prefs.setString('geminiApiKey', value);
+    }
   }
 }
