@@ -9,11 +9,6 @@ class AiImportService {
   AiImportService({required this.apiKey});
 
   Future<List<Word>> extractVocabFromImage(Uint8List imageBytes, String deckId) async {
-    final model = GenerativeModel(
-      model: 'gemini-1.5-flash-latest',
-      apiKey: apiKey,
-    );
-
     final prompt = TextPart(
       '''
 Hãy phân tích bức ảnh này và trích xuất toàn bộ từ vựng tiếng Trung có trong đó.
@@ -47,45 +42,62 @@ Không xuất ra bất kỳ text nào khác ngoài JSON.
       DataPart(mimeType, imageBytes),
     ];
 
-    try {
-      final response = await model.generateContent([
-        Content.multi([prompt, ...imageParts])
-      ]);
+    final modelsToTry = [
+      'gemini-1.5-flash',
+      'gemini-1.5-flash-latest',
+      'gemini-1.5-pro',
+      'gemini-pro-vision'
+    ];
 
-      final text = response.text;
-      if (text == null || text.isEmpty) return [];
+    String? lastError;
+    for (final modelName in modelsToTry) {
+      try {
+        final model = GenerativeModel(
+          model: modelName,
+          apiKey: apiKey,
+        );
 
-      // Extract JSON from response (handling potential markdown block)
-      String jsonStr = text;
-      if (jsonStr.contains('```json')) {
-        jsonStr = jsonStr.split('```json')[1].split('```')[0].trim();
-      } else if (jsonStr.contains('```')) {
-        jsonStr = jsonStr.split('```')[1].split('```')[0].trim();
-      }
+        final response = await model.generateContent([
+          Content.multi([prompt, ...imageParts])
+        ]);
 
-      final List<dynamic> decoded = jsonDecode(jsonStr);
-      final List<Word> words = [];
+        final text = response.text;
+        if (text == null || text.isEmpty) continue;
 
-      for (var item in decoded) {
-        if (item is Map<String, dynamic>) {
-          final hanzi = item['hanzi']?.toString() ?? '';
-          if (hanzi.isEmpty) continue;
-
-          words.add(Word(
-            deckId: deckId,
-            hanzi: hanzi,
-            pinyin: item['pinyin']?.toString() ?? '',
-            meaning: item['meaning']?.toString() ?? '',
-            partOfSpeech: item['partOfSpeech']?.toString(),
-            createdDate: DateTime.now(),
-          ));
+        String jsonStr = text;
+        if (jsonStr.contains('```json')) {
+          jsonStr = jsonStr.split('```json')[1].split('```')[0].trim();
+        } else if (jsonStr.contains('```')) {
+          jsonStr = jsonStr.split('```')[1].split('```')[0].trim();
         }
-      }
 
-      return words;
-    } catch (e, stack) {
-      print('AI Error: $e\n$stack');
-      throw Exception('Chi tiết lỗi: $e');
+        final List<dynamic> decoded = jsonDecode(jsonStr);
+        final List<Word> words = [];
+
+        for (var item in decoded) {
+          if (item is Map<String, dynamic>) {
+            final hanzi = item['hanzi']?.toString() ?? '';
+            if (hanzi.isEmpty) continue;
+
+            words.add(Word(
+              deckId: deckId,
+              hanzi: hanzi,
+              pinyin: item['pinyin']?.toString() ?? '',
+              meaning: item['meaning']?.toString() ?? '',
+              partOfSpeech: item['partOfSpeech']?.toString(),
+              createdDate: DateTime.now(),
+            ));
+          }
+        }
+
+        return words; // Success!
+      } catch (e) {
+        print('AI Error with model $modelName: $e');
+        lastError = '$e (model: $modelName)';
+        // Continue to the next model
+      }
     }
+
+    throw Exception('Đã thử tất cả các AI Models nhưng đều thất bại. Lỗi cuối cùng: $lastError');
   }
 }
