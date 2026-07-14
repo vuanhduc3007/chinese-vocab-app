@@ -55,6 +55,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }
             },
           ),
+          ListTile(
+            title: const Text('Gemini API Key'),
+            subtitle: Text(
+              (settings.geminiApiKey == null || settings.geminiApiKey!.isEmpty)
+                  ? 'Chưa cấu hình (Cần thiết cho tính năng Quét ảnh)'
+                  : 'Đã cấu hình (Nhấn để thay đổi)',
+            ),
+            trailing: const Icon(Icons.vpn_key),
+            onTap: () async {
+              final controller = TextEditingController(text: settings.geminiApiKey ?? '');
+              final value = await showDialog<String>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Cấu hình Gemini API Key'),
+                  content: TextField(
+                    controller: controller,
+                    decoration: const InputDecoration(
+                      hintText: 'Nhập API Key mới hoặc xóa trắng để xóa...',
+                    ),
+                    autofocus: true,
+                  ),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+                    TextButton(onPressed: () => Navigator.pop(ctx, controller.text), child: const Text('Lưu')),
+                  ],
+                ),
+              );
+              if (value != null) {
+                await settings.setGeminiApiKey(value.trim());
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã cập nhật Gemini API Key')));
+                }
+              }
+            },
+          ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.cloud_sync, color: Colors.teal),
