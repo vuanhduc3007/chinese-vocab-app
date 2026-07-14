@@ -10,7 +10,7 @@ class AiImportService {
 
   Future<List<Word>> extractVocabFromImage(Uint8List imageBytes, String deckId) async {
     final model = GenerativeModel(
-      model: 'gemini-1.5-flash',
+      model: 'gemini-1.5-flash-latest',
       apiKey: apiKey,
     );
 
