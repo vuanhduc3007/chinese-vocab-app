@@ -84,8 +84,8 @@ Không xuất ra bất kỳ text nào khác ngoài JSON.
 
       return words;
     } catch (e, stack) {
-      print('AI Error: \$e\\n\$stack');
-      throw Exception('Chi tiết lỗi: \$e');
+      print('AI Error: $e\n$stack');
+      throw Exception('Chi tiết lỗi: $e');
     }
   }
 }
